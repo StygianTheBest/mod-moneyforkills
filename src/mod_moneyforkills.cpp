@@ -23,6 +23,7 @@
 
 ### Version ###
 ------------------------------------------------------------------------------------------------------------------
+- v2018.12.09 - Updated config
 - v2018.12.01 - Added Low Level MOB bounty option, Prevent low PVP payouts
 - v2017.09.22 - Added PVPCorpseLoot as a config option
 - v2017.09.02 - Added distance check, Fixed group payment
