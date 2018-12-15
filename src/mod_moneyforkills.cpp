@@ -11,6 +11,8 @@
 - Dungeon boss kills are announced to the party.
 - World boss kills are announced to the world.
 - Player suicides are announced to the world.
+- Low level player kills are announced to the world.
+- Minimum player level for PVP loot can be set in config.
 
 
 ### Data ###
@@ -23,17 +25,17 @@
 
 ### Version ###
 ------------------------------------------------------------------------------------------------------------------
-- v2018.12.09 - Updated config
+- v2018.12.15 - Added Low Level Player loot option, Change suicide check
 - v2018.12.01 - Added Low Level MOB bounty option, Prevent low PVP payouts
 - v2017.09.22 - Added PVPCorpseLoot as a config option
 - v2017.09.02 - Added distance check, Fixed group payment
 - v2017.08.31 - Added boss kills
-- v2017.08.24
+- v2017.08.24 - Release
 
 
 ### Credits ###
 ------------------------------------------------------------------------------------------------------------------
-#### A module for AzerothCore by StygianTheBest ([stygianthebest.github.io](http://stygianthebest.github.io)) ####
+#### An original module for AzerothCore by StygianTheBest http://stygianthebest.github.io ####
 
 ###### Additional Credits include:
 - [Blizzard Entertainment](http://blizzard.com)
@@ -64,6 +66,7 @@ bool MFKAnnounceModule = true;
 bool MFKKillingBlowOnly = false;
 bool MFKMoneyForNothing = false;
 bool MFKLowLevelBounty = false;
+uint32 MFKMinPVPLevel = 10;
 uint32 MFKPVPCorpseLootPercent = 5;
 uint32 MFKKillMultiplier = 100;
 uint32 MFKPVPMultiplier = 200;
@@ -99,6 +102,7 @@ public:
         MFKKillingBlowOnly = sConfigMgr->GetBoolDefault("MFK.KillingBlowOnly", false);
         MFKMoneyForNothing = sConfigMgr->GetBoolDefault("MFK.MoneyForNothing", false);
         MFKLowLevelBounty = sConfigMgr->GetBoolDefault("MFK.LowLevelBounty", false);
+        MFKMinPVPLevel = sConfigMgr->GetIntDefault("MFK.MinPVPLevel", 10);
         MFKPVPCorpseLootPercent = sConfigMgr->GetIntDefault("MFK.PVP.CorpseLootPercent", 5);
         MFKKillMultiplier = sConfigMgr->GetIntDefault("MFK.Kill.Multiplier", 100);
         MFKPVPMultiplier = sConfigMgr->GetIntDefault("MFK.PVP.Multiplier", 200);
@@ -120,7 +124,7 @@ public:
         {
             if (MFKAnnounceModule)
             {
-                ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00MoneyForKills |rmodule.");
+                ChatHandler(player->GetSession()).SendSysMessage("This server is running the|cff4CFF00 MoneyForKills |rmodule.");
             }
         }
     }
@@ -143,18 +147,18 @@ public:
                 std::ostringstream ss;
 
                 // No reward for killing yourself
-                if (player->GetGUID() == victim->GetGUID())
+                if (player->GetName().compare(victim->GetName()) == 0)
                 {
-                    // Inform the world
-                    ss << "|cff676767[ |cffFFFF00World |cff676767]|r:|cff4CFF00 " << player->GetName() << " met an untimely demise!";
-                    sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
-                    return;
+                        // Inform the world
+                        ss << "|cff676767[ {rt8} |cff676767]|r: |cff4CFF00 " << player->GetName() << " met an untimely demise!";
+                        sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
+                        return;
                 }
 
-                // Don't let low level players game the system
-                if (player->getLevel() < 30)
+                // Was the poor bastard worth any loot?
+                if (victim->getLevel() <= MFKMinPVPLevel)
                 {
-                    ss << "|cff676767[ |cffFFFF00World |cff676767]|r:|cff4CFF00 " << player->GetName() << " was slaughtered mercilessly!";
+                    ss << "|cff676767[ {rt8} |cff676767]|r: |cff4CFF00 " << victim->GetName() << " was slaughtered mercilessly by " << player->GetName() << "!";
                     sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
                     return;
                 }
@@ -434,7 +438,8 @@ public:
             {
                 // Inform the world of the kill
                 std::ostringstream sw;
-                sw << "|cffFF0000[cffFFFF00World |cffFF0000]|r:|cff4CFF00 " << player->GetName() << "'s|r group triumphed victoriously over |CFF18BE00[" << killed->GetName() << "]|r !";
+                sw << "|cffFF0000[ {rt8} |cffff6060BOSS KILL {rt8}|cffFF0000]|cffffffff:|cff4CFF00 " << player->GetName()
+                   << "|cffffffff's group triumphed victoriously over |CFF18BE00[|cFF90EE90 " << killed->GetName() << " |CFF18BE00]|cffffffff !";
                 sWorld->SendServerMessage(SERVER_MSG_STRING, sw.str().c_str());
 
                 // Inform the player of the bounty
