@@ -25,7 +25,7 @@
 
 ### Version ###
 ------------------------------------------------------------------------------------------------------------------
-- v2018.12.15 - Added Low Level Player loot option, Change suicide check
+- v2018.12.15 - Added Low Level Player loot option, Change suicide check, World boss kill only announced by leader
 - v2018.12.01 - Added Low Level MOB bounty option, Prevent low PVP payouts
 - v2017.09.22 - Added PVPCorpseLoot as a config option
 - v2017.09.02 - Added distance check, Fixed group payment
@@ -149,16 +149,17 @@ public:
                 // No reward for killing yourself
                 if (player->GetName().compare(victim->GetName()) == 0)
                 {
-                        // Inform the world
-                        ss << "|cff676767[ {rt8} |cff676767]|r: |cff4CFF00 " << player->GetName() << " met an untimely demise!";
-                        sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
-                        return;
+                    // Inform the world
+                    ss << "|cffFFFFFF" << player->GetName() << "|cffff6060 met an untimely demise!";
+                    sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
+                    return;
                 }
 
                 // Was the poor bastard worth any loot?
                 if (victim->getLevel() <= MFKMinPVPLevel)
                 {
-                    ss << "|cff676767[ {rt8} |cff676767]|r: |cff4CFF00 " << victim->GetName() << " was slaughtered mercilessly by " << player->GetName() << "!";
+                    ss << "|cffFF0000[|cffff6060PVP|cffFF0000]|cffFFFFFF " << victim->GetName()
+                       << "|cffFF0000 was slaughtered mercilessly by|cffff6060 " << player->GetName() << "|cffFF0000 !";
                     sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
                     return;
                 }
@@ -168,7 +169,8 @@ public:
                 const int VictimLoot = (victim->GetMoney() * MFKPVPCorpseLootPercent) / 100;    // Configured % of victim's loot
                 const int BountyAmount = ((VictimLevel * MFKPVPMultiplier) / 3);                // Modifier
 
-                // Rifle the victim's corpse for loot
+                // Rifle the victim's corpse and chec for loot
+                // If they have at least 1 gold
                 if (victim->GetMoney() >= 10000)
                 {
                     // Player loots 5% of the victim's gold
@@ -201,10 +203,10 @@ public:
         std::ostringstream ss;
 
         // No reward for killing yourself
-        if (player->GetGUID() == killed->GetGUID())
+        if (player->GetName().compare(killed->GetName()) == 0)
         {
             // Inform the world
-            ss << "|cff676767[ |cffFFFF00World |cff676767]|r:|cff4CFF00 " << player->GetName() << " met an untimely demise!";
+            ss << "|cffFFFFFF" << player->GetName() << "|cffff6060 met an untimely demise!";
             sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
             return;
         }
@@ -330,10 +332,6 @@ public:
                     }
                 }
             }
-            else
-            {
-                //return;
-            }
         }
     }
 
@@ -371,12 +369,13 @@ public:
             // Payment notification
             if (KillType == "Loot")
             {
-                ss << "You loot ";
-                sv << player->GetName() << " rifles through your corpse and takes ";
+                ss << "|cffFF0000[|cffff6060PVP|cffFF0000] You loot|cFFFFD700 ";
+                sv << "|cffFF0000[|cffff6060PVP|cffFF0000]|cffFFFFFF " << player->GetName() << "|cffFF0000 rifles through your corpse and takes|cFFFFD700 ";
             }
             else if (KillType == "PVP")
             {
-                ss << "|cff676767[ |cffFFFF00World |cff676767]|r:|cff4CFF00 " << player->GetName() << " |cffFF0000has slain " << victim->GetName() << " earning a bounty of ";
+                ss << "|cffFF0000[|cffff6060PVP|cffFF0000]|cffFFFFFF " << player->GetName() << "|cffFF0000 has slain|cffFFFFFF "
+                   << victim->GetName() << "|cffFF0000 earning a bounty of|cFFFFD700 ";
             }
             else
             {
@@ -420,13 +419,13 @@ public:
             // Type of kill
             if (KillType == "Loot")
             {
-                ss << " from the corpse.";
-                sv << ".";
+                ss << "|cffFF0000 from the corpse.";
+                sv << "|cffFF0000.";
             }
             else if (KillType == "PVP")
             {
-                ss << ".";
-                sv << ".";
+                ss << "|cffFF0000.";
+                sv << "|cffFF0000.";
             }
             else
             {
@@ -436,14 +435,32 @@ public:
             // If it's a boss kill..
             if (KillType == "WorldBoss")
             {
-                // Inform the world of the kill
-                std::ostringstream sw;
-                sw << "|cffFF0000[ {rt8} |cffff6060BOSS KILL {rt8}|cffFF0000]|cffffffff:|cff4CFF00 " << player->GetName()
-                   << "|cffffffff's group triumphed victoriously over |CFF18BE00[|cFF90EE90 " << killed->GetName() << " |CFF18BE00]|cffffffff !";
-                sWorld->SendServerMessage(SERVER_MSG_STRING, sw.str().c_str());
+                std::ostringstream ss;
 
-                // Inform the player of the bounty
-                ChatHandler(player->GetSession()).SendSysMessage(ss.str().c_str());
+                // Is the player in a group? 
+                if (player->GetGroup())
+                {                     
+                    // Only the party leader should announce the boss kill.
+                    if (player->GetGroup()->GetLeaderName() == player->GetName())
+                    {
+                        // Chat icons don't show for all clients despite them showing when entered manually. Disabled until fix is found.
+                        // Ex: {rt8} = {skull}
+                        ss << "|cffFF0000[|cffff6060 BOSS KILL |cffFF0000]|cffFFFFFF " << player->GetName()
+                           << "|cffFFFFFF's group triumphed victoriously over |cffFF0000[|cffff6060 "
+                           << killed->GetName() << " |cffFF0000]|cffFFFFFF !";
+
+                        sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
+                    }         
+                }
+                else
+                {
+                    // Solo Kill
+                    ss << "|cffFF0000[|cffff6060 BOSS KILL |cffFF0000]|cffFFFFFF " << player->GetName()
+                       << "|cffFFFFFF triumphed victoriously over |cffFF0000[|cffff6060 "
+                       << killed->GetName() << " |cffFF0000]|cffFFFFFF !";
+
+                    sWorld->SendServerMessage(SERVER_MSG_STRING, ss.str().c_str());
+                }
             }
             else if (KillType == "Loot")
             {
@@ -462,10 +479,21 @@ public:
             {
                 if (KillType == "DungeonBoss")
                 {
-                    // Inform the player of the Dungeon Boss kill
-                    std::ostringstream sb;
-                    sb << "|cffFF8000Your party has defeated |cffFF0000" << killed->GetName() << "|cffFF8000.";
-                    ChatHandler(player->GetSession()).SendSysMessage(sb.str().c_str());
+                    // Is the player in a group? 
+                    if (player->GetGroup())
+                    {
+                        // Inform the player of the Dungeon Boss kill
+                        std::ostringstream sb;
+                        sb << "|cffFF8000 Your party has defeated |cffFF0000" << killed->GetName() << "|cffFF8000 !";
+                        ChatHandler(player->GetSession()).SendSysMessage(sb.str().c_str());
+                    }
+                    else
+                    {
+                        // Solo Kill
+                        std::ostringstream sb;
+                        sb << "|cffFF8000 You have defeated |cffFF0000" << killed->GetName() << "|cffFF8000 !";
+                        ChatHandler(player->GetSession()).SendSysMessage(sb.str().c_str());
+                    }
                 }
 
                 // Inform the player of the bounty
