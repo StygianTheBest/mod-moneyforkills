@@ -267,6 +267,14 @@ public:
                         {
                             BountyAmount = 0;
                         }
+                        else
+                        {
+                            // Is the creature worth XP or Honor?
+                            if (!player->isHonorOrXPTarget(killed))
+                            {
+                                // BountyAmount = 0;
+                            }
+                        }
                     }
 
                     // Pay the bounty amount
